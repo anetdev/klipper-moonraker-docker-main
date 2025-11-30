@@ -2,7 +2,7 @@ version: '2'
 
 services:
   klipper:
-    image: ghcr.io/anetdev/klipper-fluidd-docker-main/klipper-moonraker:main
+    image: ghcr.io/anetdev/klipper-docker-main/klipper-moonraker:main
     # build:
     #   dockerfile: ./klipper/Dockerfile
     #   context: .
@@ -26,17 +26,9 @@ services:
     #   - /dev/ttyUSB0:/dev/ttyUSB0
 
 
-  fluidd:
-    image: ghcr.io/anetdev/klipper-fluidd-docker-main/fluidd:main
-    restart: unless-stopped
-    container_name: fluidd
-    ports:
-      - 8010:80
-    depends_on: 
-      - klipper      
-    links:
-      - klipper:klipper
-      
+  # Frontend service removed (switched from Fluidd to Mainsail).
+  # If you want to add a Mainsail frontend service, add it here using the
+  # appropriate mainsail image, port mapping, and any required volumes.
 
 volumes: 
   moonraker_data:

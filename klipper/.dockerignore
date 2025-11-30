@@ -1,0 +1,15 @@
+.git
+.gitignore
+**/__pycache__
+**/*.pyc
+*.log
+.wheelhouse
+wheels
+dist
+build
+.env
+.venv
+node_modules
+.vscode
+.DS_Store
+*.swp

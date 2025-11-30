@@ -14,7 +14,8 @@ __Klipper with Moonraker shipped with Fluidd__
 - forked from https://github.com/dimalo/klipper-web-control-docker
 - removed Mainsail
 - added mjpg_streamer support
-- Build with Github actions and deployed to TODO:
+- Added Klipper-Adaptive-Meshing-Purging (KAMP)
+- Build with Github actions and deployed to ghcr.io
 
 
 ## Features
@@ -27,6 +28,7 @@ __Klipper with Moonraker shipped with Fluidd__
   - the services start without it, so you can supply your config through the web UI
   - you can mount your config file to /home/klippy/printer_data/config/printer.cfg, and klipper will pick it up after a restart
 - Fluidd cam support using mjpg_streamer
+- Support for Klipper-Adaptive-Meshing-Purging (https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging)
 
 ## Getting started
 
@@ -87,3 +89,4 @@ This article was very helpful [how-to-access-serial-devices-in-docker](https://w
 - [Klipper](https://github.com/KevinOConnor/klipper)
 - [Moonraker](https://github.com/Arksine/moonraker)
 - [Fluidd](https://github.com/cadriel/fluidd)
+- [KAMP](https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging)
