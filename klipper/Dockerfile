@@ -40,7 +40,7 @@ RUN apt-get update && \
 
 # RUN sed -i -e 's/# en_GB.UTF-8 UTF-8/en_GB.UTF-8 UTF-8/' /etc/locale.gen
 # RUN locale-gen
-RUN python -m pip install -U pip setuptools wheel && \
+RUN --mount=type=cache,target=/root/.cache/pip python -m pip install -U pip setuptools wheel && \
     pip wheel --no-cache-dir -w ${WHEELS} supervisord-dependent-startup gpiod numpy matplotlib
 
 # ENV LC_ALL en_GB.UTF-8 
@@ -56,7 +56,7 @@ RUN git clone --single-branch --branch ${KLIPPER_BRANCH} https://github.com/Klip
 RUN [ ! -d ${KLIPPER_VENV_DIR} ] && python3 -m venv ${KLIPPER_VENV_DIR}
 
 WORKDIR ${HOME}/klipper
-RUN ${KLIPPER_VENV_DIR}/bin/python -m pip install --upgrade pip setuptools wheel && \
+RUN --mount=type=cache,target=/root/.cache/pip ${KLIPPER_VENV_DIR}/bin/python -m pip install --upgrade pip setuptools wheel && \
     ${KLIPPER_VENV_DIR}/bin/pip install --no-cache-dir -f ${WHEELS} -r scripts/klippy-requirements.txt
 RUN ${KLIPPER_VENV_DIR}/bin/python klippy/chelper/__init__.py
 RUN ${KLIPPER_VENV_DIR}/bin/python -m compileall klippy
@@ -70,7 +70,7 @@ RUN git clone --single-branch --branch ${MOONRAKER_BRANCH} https://github.com/Ar
 RUN [ ! -d ${MOONRAKER_VENV_DIR} ] && python3 -m venv ${MOONRAKER_VENV_DIR}
 
 WORKDIR ${HOME}/moonraker
-RUN ${MOONRAKER_VENV_DIR}/bin/python -m pip install --upgrade pip setuptools wheel && \
+RUN --mount=type=cache,target=/root/.cache/pip ${MOONRAKER_VENV_DIR}/bin/python -m pip install --upgrade pip setuptools wheel && \
     ${MOONRAKER_VENV_DIR}/bin/pip install --no-cache-dir -f ${WHEELS} -r scripts/moonraker-requirements.txt
 RUN ${MOONRAKER_VENV_DIR}/bin/python -m compileall moonraker
 
@@ -99,6 +99,7 @@ RUN apt-get update && \
     libssl-dev \
     # libtiff5 removed: not available on some slim bases; OpenCV package will pull required libs
     supervisor \
+    gettext-base \
     libv4l-dev \
     zlib1g-dev \
     python3-opencv \
@@ -186,6 +187,16 @@ RUN chown -R ${USER}:${USER} ${HOME}/moonraker-telegram-bot
 RUN chmod +x ${HOME}/moonraker-telegram-bot/bot/main.py
 
 COPY supervisord.conf /etc/supervisord/conf.d/supervisord.conf
-COPY supervisor/*.ini /etc/supervisord/
-# CMD [ "bash" ]
+# copy templates to be processed at runtime
+COPY supervisor/*.ini.template /etc/templates/
+COPY config/moonraker.conf.template /etc/templates/
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+LABEL org.opencontainers.image.title="klipper-fluidd" \
+    org.opencontainers.image.description="Klipper + Moonraker container (klipper-fluidd)" \
+    org.opencontainers.image.license="MIT" \
+    org.opencontainers.image.source="https://github.com/anetdev/klipper-fluidd-docker-main"
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["supervisord", "-c", "/etc/supervisord/conf.d/supervisord.conf"]
