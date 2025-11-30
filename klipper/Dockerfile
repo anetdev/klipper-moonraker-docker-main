@@ -186,6 +186,16 @@ RUN ${TEL_BOT_VENV}/bin/pip install --no-cache-dir opencv-python
 RUN chown -R ${USER}:${USER} ${HOME}/moonraker-telegram-bot
 RUN chmod +x ${HOME}/moonraker-telegram-bot/bot/main.py
 
+#Klipper-Adaptive-Meshing-Purging
+WORKDIR ${HOME}
+RUN git clone https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging.git
+WORKDIR ${HOME}/Klipper-Adaptive-Meshing-Purging
+RUN cp -r Configuration ${CONFIG_DIR}/KAMP
+RUN cp Configuration/KAMP_Settings.cfg ${CONFIG_DIR}/KAMP_Settings.cfg
+RUN chown -R ${USER}:${USER} ${CONFIG_DIR}/KAMP
+RUN chown  ${USER}:${USER} ${CONFIG_DIR}/KAMP_Settings.cfg
+
+
 COPY supervisord.conf /etc/supervisord/conf.d/supervisord.conf
 # copy templates to be processed at runtime
 COPY supervisor/*.ini.template /etc/templates/
