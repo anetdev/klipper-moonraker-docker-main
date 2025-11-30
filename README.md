@@ -1,7 +1,6 @@
-<!-- ![Mainsail Multiarch Image CI](https://github.com/dimalo/klipper-fluidd-control-docker/workflows/Mainsail%20Multiarch%20Image%20CI/badge.svg)
-![Klipper Moonraker Multiarch Image CI](https://github.com/dimalo/klipper-fluidd-control-docker/workflows/Klipper%20Moonraker%20Multiarch%20Image%20CI/badge.svg) -->
+<!-- CI badges removed -->
 
-- [klipper-fluidd-control-docker](#klipper-fluidd-control-docker)
+- [klipper-control-docker](#klipper-control-docker)
   - [Features](#features)
   - [Getting started](#getting-started)
     - [Install the services](#install-the-services)
@@ -9,12 +8,12 @@
     - [If things are not running...](#if-things-are-not-running)
   - [Features not implemented or not tested (yet)](#features-not-implemented-or-not-tested-yet)
   - [Credits](#credits)
-# klipper-fluidd-control-docker
-__Klipper with Moonraker shipped with Fluidd__
+# klipper-control-docker
+__Klipper with Moonraker (web frontend not included)__
 - forked from https://github.com/dimalo/klipper-web-control-docker
 - removed Mainsail
 - added mjpg_streamer support
-- Added Klipper-Adaptive-Meshing-Purging (KAMP)
+-- Removed Klipper-Adaptive-Meshing-Purging (KAMP)
 - Build with Github actions and deployed to ghcr.io
 
 
@@ -23,12 +22,17 @@ __Klipper with Moonraker shipped with Fluidd__
 - Docker multistage builds for optimized image sizes
 - fully integrated klipper image with moonraker enabled
   - startup management with supervisord & dependent startup (klipper starts first, then only if klipper is running moonraker is started)
-- complete Klipper setup with [Fluidd](https://github.com/cadriel/fluidd)
-  - only your printer.cfg is required
-  - the services start without it, so you can supply your config through the web UI
-  - you can mount your config file to /home/klippy/printer_data/config/printer.cfg, and klipper will pick it up after a restart
-- Fluidd cam support using mjpg_streamer
-- Support for Klipper-Adaptive-Meshing-Purging (https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging)
+- This container does not include a web frontend. Install a frontend such as Mainsail or Fluidd separately (see their upstream repositories or Docker images).
+- only your printer.cfg is required by the Klipper/Moonraker services
+- the services start without a frontend, so you can supply your config through other means
+- you can mount your config file to /home/klippy/printer_data/config/printer.cfg, and klipper will pick it up after a restart
+
+- Adaptive bed leveling features are provided by Klipper itself; no separate KAMP package is included.
+
+### Included extras
+- **mjpg-streamer** — Webcam support: built from source and included in the image (`/home/klippy/mjpg-streamer`), with a sample `index.html` copied to `/home/klippy/www-mjpgstreamer/index.html`.
+- **moonraker-telegram-bot** — Telegram bot cloned into `/home/klippy/moonraker-telegram-bot` and installed into a venv; requires configuration to enable.
+- **Prebuilt venvs** — Klipper and Moonraker are built in the builder stage and their venvs are copied into the final image for faster startup.
 
 ## Getting started
 
@@ -38,7 +42,7 @@ ___Prerequisites:___
 - _You have docker and docker-compose installed on your machine_
 - _You have flashed your printer with the appropriate .bin_
 - _You have your printer connected to your machine and you know it's serial mount point (e.g. /dev/ttyACM0 or /dev/ttyUSB0)_
-- _ARM32v6 (Raspberry Pi Zero and 1) requires [Docker 20](https://docs.docker.com/engine/install/debian/#install-using-the-convenience-script). Fluidd is not yet supported_
+- _ARM32v6 (Raspberry Pi Zero and 1) requires [Docker 20](https://docs.docker.com/engine/install/debian/#install-using-the-convenience-script). A web frontend is not yet supported_
 
 ### Install the services
 
@@ -51,8 +55,8 @@ ___Prerequisites:___
     - make sure you have no port conflicts on 7125, 8010 and 8011 
     - make sure klipper and moonraker started
     - leave the compose session running
-1. test the frontends
-    - http://{dockerserver}:8010
+1. No web frontend is included in this repository's compose setup.
+  - To add a frontend, install Mainsail or Fluidd separately (use their official Docker images or install on another host).
 1. configure your printer
     - modify / upload printer.cfg, if not mounted already
     - check if klipper is able to connect to the printer
@@ -88,5 +92,5 @@ This article was very helpful [how-to-access-serial-devices-in-docker](https://w
 - [dimalo](https://github.com/dimalo/klipper-web-control-docker) thanks for docker image.  
 - [Klipper](https://github.com/KevinOConnor/klipper)
 - [Moonraker](https://github.com/Arksine/moonraker)
-- [Fluidd](https://github.com/cadriel/fluidd)
-- [KAMP](https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging)
+(web frontend such as Mainsail)
+- (adaptive bed leveling features are available in Klipper)
