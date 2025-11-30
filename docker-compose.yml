@@ -26,9 +26,8 @@ services:
     #   - /dev/ttyUSB0:/dev/ttyUSB0
 
 
-  # Frontend service removed (switched from Fluidd to Mainsail).
-  # If you want to add a Mainsail frontend service, add it here using the
-  # appropriate mainsail image, port mapping, and any required volumes.
+  # No web frontend included in this compose file. Install a frontend separately
+  # (for example, using the official Mainsail or Fluidd Docker images).
 
 volumes: 
   moonraker_data:
