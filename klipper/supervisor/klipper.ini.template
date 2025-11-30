@@ -9,3 +9,6 @@ stderr_logfile_maxbytes = 0
 autorestart=true
 autostart=false
 
+dependent_startup=true
+dependent_startup_wait_for=klipper_mcu:running
+
