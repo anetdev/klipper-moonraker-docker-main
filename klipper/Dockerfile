@@ -196,7 +196,7 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 LABEL org.opencontainers.image.title="klipper" \
     org.opencontainers.image.description="Klipper + Moonraker container (klipper)" \
     org.opencontainers.image.license="MIT" \
-    org.opencontainers.image.source="https://github.com/anetdev/klipper-moon-docker-main"
+    org.opencontainers.image.source="https://github.com/anetdev/klipper-moonraker-docker-main"
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["supervisord", "-c", "/etc/supervisord/conf.d/supervisord.conf"]
