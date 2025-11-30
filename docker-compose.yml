@@ -2,7 +2,7 @@ version: '2'
 
 services:
   klipper:
-    image: ghcr.io/anetdev/klipper-docker-main/klipper-moonraker:main
+    image: ghcr.io/anetdev/klipper-moonraker-docker-main/klipper-moonraker:main
     # build:
     #   dockerfile: ./klipper/Dockerfile
     #   context: .

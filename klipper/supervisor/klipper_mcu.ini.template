@@ -1,10 +1,14 @@
 [program:klipper_mcu]
-user=klippy
-command=/usr/local/bin/klipper_mcu
-environment=USER=klippy,HOME=/home/klippy
+
+[program:klipper_mcu]
+user=root
+command=/usr/local/bin/klipper_mcu -r
 stdout_logfile=/dev/fd/1
 stdout_logfile_maxbytes = 0
 stderr_logfile=/dev/fd/2
 stderr_logfile_maxbytes = 0
 autorestart=true
 autostart=false
+
+dependent_startup=true
+
