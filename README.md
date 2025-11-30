@@ -92,5 +92,6 @@ This article was very helpful [how-to-access-serial-devices-in-docker](https://w
 - [dimalo](https://github.com/dimalo/klipper-web-control-docker) thanks for docker image.  
 - [Klipper](https://github.com/KevinOConnor/klipper)
 - [Moonraker](https://github.com/Arksine/moonraker)
-(web frontend such as Mainsail)
-- (adaptive bed leveling features are available in Klipper)
+- [Mainsail](https://docs.mainsail.xyz/setup/getting-started/docker)
+- [Fluidd](https://docs.fluidd.xyz/)
+
