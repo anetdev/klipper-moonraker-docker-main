@@ -1,4 +1,4 @@
-FROM python:3.10-bullseye as builder
+FROM python:3.10-slim-bullseye AS builder
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG KLIPPER_BRANCH="master"
@@ -14,7 +14,7 @@ ENV PYTHONUNBUFFERED=1
 
 RUN useradd -d ${HOME} -ms /bin/bash ${USER}
 RUN apt-get update && \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
     locales \
     git \
     sudo \
@@ -35,11 +35,12 @@ RUN apt-get update && \
     libjpeg-dev \
     libjpeg62-turbo-dev \
     cmake \
-    unzip
+    unzip && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # RUN sed -i -e 's/# en_GB.UTF-8 UTF-8/en_GB.UTF-8 UTF-8/' /etc/locale.gen
 # RUN locale-gen
-RUN python -m pip install -U pip wheel && \
+RUN --mount=type=cache,target=/root/.cache/pip python -m pip install -U pip setuptools wheel && \
     pip wheel --no-cache-dir -w ${WHEELS} supervisord-dependent-startup gpiod numpy matplotlib
 
 # ENV LC_ALL en_GB.UTF-8 
@@ -51,12 +52,11 @@ WORKDIR ${HOME}
 
 ### Klipper setup ###
 RUN git clone --single-branch --branch ${KLIPPER_BRANCH} https://github.com/Klipper3d/klipper.git klipper
-RUN git clone --single-branch --branch master https://github.com/protoloft/klipper_z_calibration.git klipper_z_calibration
-RUN ln -sf klipper_z_calibration/z_calibration.py klipper/klippy/extras/z_calibration.py
+# klipper_z_calibration plugin removed — not used in this build
 RUN [ ! -d ${KLIPPER_VENV_DIR} ] && python3 -m venv ${KLIPPER_VENV_DIR}
 
 WORKDIR ${HOME}/klipper
-RUN ${KLIPPER_VENV_DIR}/bin/pip install wheel && \
+RUN --mount=type=cache,target=/root/.cache/pip ${KLIPPER_VENV_DIR}/bin/python -m pip install --upgrade pip setuptools wheel && \
     ${KLIPPER_VENV_DIR}/bin/pip install --no-cache-dir -f ${WHEELS} -r scripts/klippy-requirements.txt
 RUN ${KLIPPER_VENV_DIR}/bin/python klippy/chelper/__init__.py
 RUN ${KLIPPER_VENV_DIR}/bin/python -m compileall klippy
@@ -70,7 +70,7 @@ RUN git clone --single-branch --branch ${MOONRAKER_BRANCH} https://github.com/Ar
 RUN [ ! -d ${MOONRAKER_VENV_DIR} ] && python3 -m venv ${MOONRAKER_VENV_DIR}
 
 WORKDIR ${HOME}/moonraker
-RUN ${MOONRAKER_VENV_DIR}/bin/pip install wheel gpiod && \
+RUN --mount=type=cache,target=/root/.cache/pip ${MOONRAKER_VENV_DIR}/bin/python -m pip install --upgrade pip setuptools wheel && \
     ${MOONRAKER_VENV_DIR}/bin/pip install --no-cache-dir -f ${WHEELS} -r scripts/moonraker-requirements.txt
 RUN ${MOONRAKER_VENV_DIR}/bin/python -m compileall moonraker
 
@@ -81,12 +81,12 @@ RUN git clone https://github.com/jacksonliam/mjpg-streamer.git
 RUN cd mjpg-streamer/mjpg-streamer-experimental && make
 RUN mv mjpg-streamer/mjpg-streamer-experimental/* mjpg-streamer && rm -rf mjpg-streamer/mjpg-streamer-experimental
 
-FROM python:3.10-slim-bullseye as image
+FROM python:3.10-slim-bullseye AS image
 
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
-    apt-get install -y \    
+    apt-get install -y --no-install-recommends \    
     curl \
     git \
     ffmpeg \    
@@ -97,8 +97,9 @@ RUN apt-get update && \
     libopenjp2-7 \
     libsodium-dev \
     libssl-dev \
-    libtiff5 \    
+    # libtiff5 removed: not available on some slim bases; OpenCV package will pull required libs
     supervisor \
+    gettext-base \
     libv4l-dev \
     zlib1g-dev \
     python3-opencv \
@@ -120,6 +121,11 @@ ENV MOONRAKER_VENV_DIR=${HOME}/moonraker-env
 ENV WHEELS=/wheels
 ENV PYTHONUNBUFFERED=1
 
+# Allow overriding service ports so multiple container instances can run
+# on a single host; map host ports to these container ports at runtime.
+ENV MOONRAKER_PORT=7125
+ENV MJPG_PORT=8080
+
 ARG DEVICE_GROUP=device
 ARG DEVICE_GID=987
 
@@ -137,7 +143,6 @@ COPY --chown=${USER}:${USER} --from=builder ${WHEELS} ${WHEELS}
 
 RUN pip install --no-index -f ${WHEELS} supervisord-dependent-startup gpiod numpy matplotlib && \
     mkdir -p /usr/lib/python3 && \
-    ln -s /usr/local/lib/python3.10/site-packages /usr/lib/python3/dist-packages && \
     rm -Rf ${WHEELS}
 
 USER ${USER}
@@ -155,7 +160,6 @@ EXPOSE 7125
 USER root
 
 COPY --chown=${USER}:${USER} --from=builder ${HOME}/klipper/out/klipper.elf /usr/local/bin/klipper_mcu
-COPY --chown=${USER}:${USER} --from=builder ${HOME}/klipper_z_calibration ${HOME}/klipper_z_calibration
 COPY --chown=${USER}:${USER} --from=builder ${HOME}/klipper ${HOME}/klipper
 COPY --chown=${USER}:${USER} --from=builder ${KLIPPER_VENV_DIR} ${KLIPPER_VENV_DIR}
 COPY --chown=${USER}:${USER} --from=builder ${HOME}/moonraker ${HOME}/moonraker
@@ -193,6 +197,16 @@ RUN chown  ${USER}:${USER} ${CONFIG_DIR}/KAMP_Settings.cfg
 
 
 COPY supervisord.conf /etc/supervisord/conf.d/supervisord.conf
-COPY supervisor/*.ini /etc/supervisord/
-# CMD [ "bash" ]
+# copy templates to be processed at runtime
+COPY supervisor/*.ini.template /etc/templates/
+COPY config/moonraker.conf.template /etc/templates/
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+LABEL org.opencontainers.image.title="klipper-fluidd" \
+    org.opencontainers.image.description="Klipper + Moonraker container (klipper-fluidd)" \
+    org.opencontainers.image.license="MIT" \
+    org.opencontainers.image.source="https://github.com/anetdev/klipper-fluidd-docker-main"
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["supervisord", "-c", "/etc/supervisord/conf.d/supervisord.conf"]
