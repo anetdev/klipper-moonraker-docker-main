@@ -21,6 +21,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 RUN git clone --depth 1 --branch ${MOONRAKER_BRANCH} ${MOONRAKER_REPO} /opt/moonraker
+RUN git clone --depth 1 https://github.com/Klipper3d/klipper.git /opt/klipper
 WORKDIR /opt/moonraker
 RUN pip install --no-cache-dir -r scripts/moonraker-requirements.txt
 RUN python -m compileall moonraker
@@ -49,6 +50,9 @@ RUN groupadd -g ${GID} ${USER} || true && \
 
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder --chown=${USER}:${USER} /opt/moonraker ${HOME}/moonraker
+# Provide example configs and docs so Mainsail can browse sample printer configs
+COPY --from=builder --chown=${USER}:${USER} /opt/klipper/config ${HOME}/klipper/config
+COPY --from=builder --chown=${USER}:${USER} /opt/klipper/docs ${HOME}/klipper/docs
 
 RUN mkdir -p ${PRINTER_DATA}/config ${PRINTER_DATA}/gcodes ${PRINTER_DATA}/logs ${PRINTER_DATA}/comms ${PRINTER_DATA}/database && \
     chown -R ${USER}:${USER} ${PRINTER_DATA}
