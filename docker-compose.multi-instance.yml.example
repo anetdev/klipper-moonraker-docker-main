@@ -1,0 +1,107 @@
+# Example Compose configuration for running two independent 3D printers on one host
+# Usage:
+#   docker compose -f docker-compose.multi-instance.yml up -d
+
+services:
+  # ==========================================
+  # PRINTER 1 (e.g. Ender 3 #1)
+  # ==========================================
+  klipper:
+    build:
+      context: ./services/klipper
+    image: klipper-service:latest
+    container_name: klipper-printer1
+    restart: unless-stopped
+    cap_add:
+      - SYS_NICE
+    group_add:
+      - ${DIALOUT_GID:-dialout}
+      - tty
+    devices:
+      - ${PRINTER1_DEVICE:-/dev/serial/by-id/usb-printer1-if00}:/dev/ttyUSB0
+    volumes:
+      - ./printer1_data:/home/klippy/printer_data
+      - ./config.template:/etc/klipper/template:ro
+    healthcheck:
+      test: ["CMD", "test", "-S", "/home/klippy/printer_data/comms/klippy.sock"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    networks:
+      - printer-net
+
+  moonraker:
+    build:
+      context: ./services/moonraker
+    image: moonraker-service:latest
+    container_name: moonraker-printer1
+    restart: unless-stopped
+    ports:
+      - "7125:7125"
+    volumes:
+      - ./printer1_data:/home/klippy/printer_data
+      - ./config.template:/etc/moonraker/template:ro
+    depends_on:
+      klipper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7125/server/info"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - printer-net
+
+  # ==========================================
+  # PRINTER 2 (e.g. Ender 3 #2)
+  # ==========================================
+  klipper2:
+    build:
+      context: ./services/klipper
+    image: klipper-service:latest
+    container_name: klipper-printer2
+    restart: unless-stopped
+    cap_add:
+      - SYS_NICE
+    group_add:
+      - ${DIALOUT_GID:-dialout}
+      - tty
+    devices:
+      - ${PRINTER2_DEVICE:-/dev/serial/by-id/usb-printer2-if00}:/dev/ttyUSB0
+    volumes:
+      - ./printer2_data:/home/klippy/printer_data
+      - ./config.template:/etc/klipper/template:ro
+    healthcheck:
+      test: ["CMD", "test", "-S", "/home/klippy/printer_data/comms/klippy.sock"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    networks:
+      - printer-net
+
+  moonraker2:
+    build:
+      context: ./services/moonraker
+    image: moonraker-service:latest
+    container_name: moonraker-printer2
+    restart: unless-stopped
+    ports:
+      - "7126:7125"
+    volumes:
+      - ./printer2_data:/home/klippy/printer_data
+      - ./config.template:/etc/moonraker/template:ro
+    depends_on:
+      klipper2:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7125/server/info"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - printer-net
+
+networks:
+  printer-net:
+    driver: bridge
+

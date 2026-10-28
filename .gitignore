@@ -1,4 +1,19 @@
-printer.cfg
-!config/printer.cfg
-.config
-build
+# Persistent runtime data
+printer_data/
+printer1_data/
+printer2_data/
+
+# Environment files
+.env
+
+# Build outputs
+build/
+.config*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.so
+.venv/
+venv/
