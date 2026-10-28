@@ -7,11 +7,17 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    python3-dev \
+    libjpeg-dev \
+    zlib1g-dev \
     liblmdb-dev \
     libsodium-dev \
+    libopenjp2-7-dev \
+    libffi-dev \
+    libssl-dev \
+    pkg-config \
     curl \
     git \
-    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt
@@ -43,6 +49,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     liblmdb0 \
     libsodium23 \
     libopenjp2-7 \
+    libjpeg62-turbo \
+    zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -g ${GID} ${USER} || true && \
