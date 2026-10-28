@@ -1,35 +1,99 @@
-version: '2'
-
 services:
   klipper:
-    image: ghcr.io/anetdev/klipper-moonraker-docker-main/klipper-moonraker:main
-    # build:
-    #   dockerfile: ./klipper/Dockerfile
-    #   context: .
-    # if klipper cannot connect to the printer check permissions on rpi then add the group here
-    # group_add:
-    #   - "996"
-    #   - "998"
-    privileged: true
+    build:
+      context: ./services/klipper
+      dockerfile: Dockerfile
+    image: klipper-service:latest
+    container_name: klipper-v2
+    restart: unless-stopped
     cap_add:
       - SYS_NICE
-    container_name: klipper
-    ports:
-      - 7125:7125
+    group_add:
+      - ${DIALOUT_GID:-dialout}
+      - tty
+    devices:
+      - ${PRINTER_DEVICE:-/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0}:/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0
+      - ${PRINTER_DEVICE:-/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0}:/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0
+      - ${PRINTER_DEVICE:-/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0}:/dev/ttyUSB0
+    volumes:
+      - ./printer_data:/home/klippy/printer_data
+      - ./config.template:/etc/klipper/template:ro
+    healthcheck:
+      test: ["CMD", "test", "-S", "/home/klippy/printer_data/comms/klippy.sock"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+      start_period: 3s
+    networks:
+      - klipper-net
+
+  moonraker:
+    build:
+      context: ./services/moonraker
+      dockerfile: Dockerfile
+    image: moonraker-service:latest
+    container_name: moonraker-v2
     restart: unless-stopped
-    volumes:      
-      - klippy_config:/home/klippy/printer_data/config
-      - gcode_files:/home/klippy/printer_data/gcodes
-      - moonraker_data:/home/klippy/.moonraker_database
-      - /dev:/dev
-    # devices:
-    #   - /dev/ttyUSB0:/dev/ttyUSB0
+    ports:
+      - "${MOONRAKER_PORT:-7125}:7125"
+    volumes:
+      - ./printer_data:/home/klippy/printer_data
+      - ./config.template:/etc/moonraker/template:ro
+    depends_on:
+      klipper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7125/server/info"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - klipper-net
 
+  ustreamer:
+    build:
+      context: ./services/ustreamer
+      dockerfile: Dockerfile
+    image: ustreamer-service:latest
+    container_name: ustreamer
+    restart: unless-stopped
+    ports:
+      - "${WEBCAM_PORT:-8080}:8080"
+    devices:
+      - ${CAMERA_DEVICE:-/dev/video0}:/dev/video0
+    group_add:
+      - video
+    environment:
+      DEVICE: /dev/video0
+      RESOLUTION: ${WEBCAM_RESOLUTION:-1280x720}
+      FRAMERATE: ${WEBCAM_FPS:-30}
+      FORMAT: ${WEBCAM_FORMAT:-MJPEG}
+    profiles:
+      - all
+      - webcam
+    networks:
+      - klipper-net
 
-  # No web frontend included in this compose file. Install a frontend separately
-  # (for example, using the official Mainsail or Fluidd Docker images).
+  telegram-bot:
+    build:
+      context: ./services/telegram-bot
+      dockerfile: Dockerfile
+    image: telegram-bot-service:latest
+    container_name: telegram-bot
+    restart: unless-stopped
+    volumes:
+      - ./printer_data:/home/klippy/printer_data
+      - ./config.template:/etc/telegram/template:ro
+    depends_on:
+      moonraker:
+        condition: service_healthy
+    profiles:
+      - all
+      - bots
+    networks:
+      - klipper-net
 
-volumes: 
-  moonraker_data:
-  klippy_config:
-  gcode_files:
+networks:
+  klipper-net:
+    driver: bridge
