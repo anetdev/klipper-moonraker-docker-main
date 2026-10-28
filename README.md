@@ -1,97 +1,133 @@
-<!-- CI badges removed -->
+# Klipper & Moonraker Modular Docker Stack (v2)
 
-- [klipper-control-docker](#klipper-control-docker)
-  - [Features](#features)
-  - [Getting started](#getting-started)
-    - [Install the services](#install-the-services)
-    - [If things are running fine now...](#if-things-are-running-fine-now)
-    - [If things are not running...](#if-things-are-not-running)
-  - [Features not implemented or not tested (yet)](#features-not-implemented-or-not-tested-yet)
-  - [Credits](#credits)
-# klipper-control-docker
-__Klipper with Moonraker (web frontend not included)__
-- forked from https://github.com/dimalo/klipper-web-control-docker
-- removed Mainsail
-- added mjpg_streamer support
--- Removed Klipper-Adaptive-Meshing-Purging (KAMP)
-- Build with Github actions and deployed to ghcr.io
+A modern, unprivileged, microservices-based Docker Compose stack for running **Klipper**, **Moonraker**, **uStreamer**, and **Telegram Bot** on **Python 3.12**.
 
+---
 
-## Features
-- Dockerhub images support x64, ARM64, ARM32v7 & ARM32v6
-- Docker multistage builds for optimized image sizes
-- fully integrated klipper image with moonraker enabled
-  - startup management with supervisord & dependent startup (klipper starts first, then only if klipper is running moonraker is started)
-- This container does not include a web frontend. Install a frontend such as Mainsail or Fluidd separately (see their upstream repositories or Docker images).
-- only your printer.cfg is required by the Klipper/Moonraker services
-- the services start without a frontend, so you can supply your config through other means
-- you can mount your config file to /home/klippy/printer_data/config/printer.cfg, and klipper will pick it up after a restart
+## Highlights
 
-- Adaptive bed leveling features are provided by Klipper itself; no separate KAMP package is included.
+* **Decoupled Microservices**: Separate containers for Klipper, Moonraker, uStreamer (webcam), and Telegram Bot. No `supervisord` required.
+* **Latest Python 3.12**: Both Klipper and Moonraker run natively on clean Python 3.12 Debian Bookworm bases with pre-compiled C-helpers (`chelper`).
+* **Unprivileged & Secure**: No `privileged: true` or broad `/dev` mounts. Uses granular `/dev/serial/by-id/...` device mapping and host group permissions (`dialout`, `video`).
+* **Standard `printer_data` Directory**: Follows the official ecosystem layout (`config`, `gcodes`, `logs`, `comms`, `database`).
+* **High-Performance Webcam**: Fast, low-latency MJPEG streaming via `ustreamer` (PiKVM) instead of legacy `mjpg-streamer`.
+* **Zero Config Overwrite**: Initial configurations are seeded safely on first run and never overwritten on container restarts.
+* **Multi-Printer Ready**: Run one printer with the default `docker-compose.yml`, or multiple independent printers using `docker-compose.multi-instance.yml.example`.
+* **Built-in Firmware Builder**: Compile `.bin`/`.elf` MCU firmware via Docker without installing cross-compilers on the host.
 
-### Included extras
-- **mjpg-streamer** — Webcam support: built from source and included in the image (`/home/klippy/mjpg-streamer`), with a sample `index.html` copied to `/home/klippy/www-mjpgstreamer/index.html`.
-- **moonraker-telegram-bot** — Telegram bot cloned into `/home/klippy/moonraker-telegram-bot` and installed into a venv; requires configuration to enable.
-- **Prebuilt venvs** — Klipper and Moonraker are built in the builder stage and their venvs are copied into the final image for faster startup.
+---
 
-## Getting started
+## Architecture
 
-___Prerequisites:___
-- _Your klipper host machine runs Linux or MacOS (Windows was not tested yet)_
-    - (MacOS) Currently it is not possible to expose serial devices to a container in MacOS Docker. This is a known issue with Docker (https://github.com/docker/for-mac/issues/900)
-- _You have docker and docker-compose installed on your machine_
-- _You have flashed your printer with the appropriate .bin_
-- _You have your printer connected to your machine and you know it's serial mount point (e.g. /dev/ttyACM0 or /dev/ttyUSB0)_
-- _ARM32v6 (Raspberry Pi Zero and 1) requires [Docker 20](https://docs.docker.com/engine/install/debian/#install-using-the-convenience-script). A web frontend is not yet supported_
+```text
+Host Hardware:
+  ├── /dev/serial/by-id/...  --> Passed to Klipper container
+  └── /dev/video0            --> Passed to uStreamer container
 
-### Install the services
+Persistent Volume (./printer_data):
+  ├── config/        # printer.cfg, moonraker.conf, macros.cfg
+  ├── gcodes/        # Uploaded print files
+  ├── logs/          # klippy.log, moonraker.log
+  ├── comms/         # klippy.sock (Unix Domain Socket)
+  └── database/      # Moonraker LMDB state
 
-1. clone this repository and open it or navigate to it in your terminal
-1. modify docker-compose.yml to your needs
-    - set serial port of your printer
-    - mount printer.cfg if already prepared (else you will be able to set it up later as well...)
-1. run ```docker-compose pull && docker-compose up``` if you want to use the provided dockerhub images, else run ```docker-compose up``` to first build them on your host
-1. watch the services being set up
-    - make sure you have no port conflicts on 7125, 8010 and 8011 
-    - make sure klipper and moonraker started
-    - leave the compose session running
-1. No web frontend is included in this repository's compose setup.
-  - To add a frontend, install Mainsail or Fluidd separately (use their official Docker images or install on another host).
-1. configure your printer
-    - modify / upload printer.cfg, if not mounted already
-    - check if klipper is able to connect to the printer
-    - follow klippers documentation to test your printers functionality
+Network & Services:
+  ├── klipper        # Runs Klippy host software
+  ├── moonraker      # Port 7125 (HTTP / WebSockets API)
+  ├── ustreamer      # Port 8080 (MJPEG Webcam Stream)
+  └── telegram-bot   # Optional Telegram integration (profile: bots)
+```
 
-### If things are running fine now...
-Quit the compose session with ```Ctrl+C```and run ```docker-compose up -d```.
+---
 
-__Happy 3D Printing!__
+## Getting Started
 
-### If things are not running...
+### 1. Prerequisites
+* Linux host machine (Docker & Docker Compose installed)
+* Connected 3D printer via USB
 
-__No serial connection:__
+### 2. Configure Environment
+Find your printer's persistent serial device path:
+```bash
+ls -l /dev/serial/by-id/
+```
 
-Check the permissions on the serial device in the klipper host.
+Copy the example environment file and edit it:
+```bash
+cp .env.example .env
+nano .env
+```
+Set your `PRINTER_DEVICE` to match your device ID, for example:
+```env
+PRINTER_DEVICE=/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0
+DIALOUT_GID=dialout
+MOONRAKER_PORT=7125
+CAMERA_DEVICE=/dev/video0
+WEBCAM_PORT=8080
+WEBCAM_RESOLUTION=640x480
+WEBCAM_FPS=30
+WEBCAM_FORMAT=MJPEG
+```
 
-```ls -lsa /dev/ttyACM0```
+### 3. Launch Services
+Using `make`:
+```bash
+# Build all images
+make build
 
-Supply the group permissions to the docker-compose config in docker-compose.yml build args for klipper.
+# Start core services (Klipper + Moonraker)
+make up
 
-Run ```docker-compose build```
+# Or start all services including Webcam and Telegram Bot
+make up-all
+```
 
-After build run ```docker-compose up -d``` and see if it works.
+Or using `docker compose`:
+```bash
+docker compose --profile webcam up -d
+```
 
-This article was very helpful [how-to-access-serial-devices-in-docker](https://www.losant.com/blog/how-to-access-serial-devices-in-docker)
+### 4. Connect Web Frontend (Mainsail / Fluidd)
+Point your web interface to your host IP on port `7125` (e.g. `http://<host-ip>:7125`).
 
-## Features not implemented or not tested (yet)
-- compiling klipper.bin for your printer 
+---
 
-- CI pipeline to build images as upstream repos change
+## Compiling MCU Firmware
 
-## Credits
-- [dimalo](https://github.com/dimalo/klipper-web-control-docker) thanks for docker image.  
-- [Klipper](https://github.com/KevinOConnor/klipper)
-- [Moonraker](https://github.com/Arksine/moonraker)
-- [Mainsail](https://docs.mainsail.xyz/setup/getting-started/docker)
-- [Fluidd](https://docs.fluidd.xyz/)
+Compile firmware for your printer mainboard (e.g., STM32, RP2040, AVR) in an isolated container:
 
+```bash
+# Open interactive Klipper menuconfig
+./build_firmware.sh menuconfig
+
+# Compile firmware (outputs to build/out/klipper.bin)
+./build_firmware.sh
+```
+
+---
+
+## Directory Structure
+
+```text
+├── .env.example                             # Environment defaults
+├── Makefile                                 # Management shortcuts
+├── docker-compose.yml                       # Primary Compose stack
+├── docker-compose.multi-instance.yml.example # Dual-printer setup example
+├── build_firmware.sh                        # Firmware compilation script
+├── config.template/                         # First-run boilerplate configs
+│   ├── printer.cfg
+│   ├── moonraker.conf
+│   ├── macros.cfg
+│   └── telegram.conf
+└── services/
+    ├── klipper/                             # Klipper service (Python 3.12)
+    ├── moonraker/                           # Moonraker service (Python 3.12)
+    ├── ustreamer/                           # uStreamer webcam service
+    ├── telegram-bot/                        # Moonraker Telegram Bot service
+    └── firmware-builder/                    # MCU compiler toolchain container
+```
+
+---
+
+## License
+MIT License.
